@@ -6,6 +6,20 @@ on:
   pull_request:
     branches: [ Integration, main, master ]
   workflow_dispatch:
+    inputs:
+      configuration:
+        description: 'Build configuration (Debug / Release)'
+        required: true
+        type: choice
+        default: Release
+        options:
+          - Debug
+          - Release
+      package_ipa:
+        description: 'Archive and package unsigned IPA'
+        required: true
+        type: boolean
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,6 +30,8 @@ jobs:
     name: Build VoidLink (iOS)
     runs-on: macos-latest
     timeout-minutes: 90
+    env:
+      CONFIG: ${{ github.event.inputs.configuration || 'Release' }}
 
     steps:
       - name: Checkout
@@ -36,6 +52,7 @@ jobs:
             -scheme VoidLink
 
       - name: Build (Debug, generic iOS device)
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.configuration == 'Debug'
         run: |
           xcodebuild \
             -project VoidLink.xcodeproj \
@@ -46,6 +63,7 @@ jobs:
             build
 
       - name: Build (Release, generic iOS device)
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.configuration == 'Release'
         run: |
           xcodebuild \
             -project VoidLink.xcodeproj \
@@ -55,12 +73,13 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
-      - name: Archive (Release, unsigned)
+      - name: Archive (unsigned)
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.package_ipa == 'true'
         run: |
           xcodebuild \
             -project VoidLink.xcodeproj \
             -scheme VoidLink \
-            -configuration Release \
+            -configuration "$CONFIG" \
             -destination 'generic/platform=iOS' \
             -archivePath "$PWD/build/VoidLink.xcarchive" \
             CODE_SIGNING_ALLOWED=NO \
@@ -69,6 +88,7 @@ jobs:
             archive
 
       - name: Package unsigned IPA
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.package_ipa == 'true'
         run: |
           mkdir -p build/IPA/Payload
           cp -R build/VoidLink.xcarchive/Products/Applications/VoidLink.app build/IPA/Payload/
@@ -76,6 +96,7 @@ jobs:
           ls -lh build/VoidLink-unsigned.ipa
 
       - name: Upload IPA artifact
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.package_ipa == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: VoidLink-unsigned
