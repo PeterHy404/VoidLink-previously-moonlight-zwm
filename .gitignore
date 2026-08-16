@@ -1,10 +1,13 @@
 **/xcuserdata/
 **/Moonlight.xcscmblueprint
 **/xcschemes/*.xcscheme
+!**/xcschemes/VoidLink.xcscheme
 .DS_Store
 Build
 DerivedData
 build-home/
 *.xccheckout
-.github
+.github/*
+!.github/workflows/
+!.github/workflows/build.yml
 README.md
